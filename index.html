@@ -1,0 +1,431 @@
+# <!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Juego Matemático PRO</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
+}
+
+body{
+    background:#0f172a;
+    color:white;
+}
+
+header{
+    background:#111827;
+    padding:20px;
+    text-align:center;
+}
+
+header h1{
+    color:#38bdf8;
+}
+
+.container{
+    width:90%;
+    max-width:900px;
+    margin:auto;
+    margin-top:20px;
+}
+
+.card{
+    background:#1e293b;
+    padding:20px;
+    border-radius:15px;
+    margin-bottom:20px;
+}
+
+button{
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    border:none;
+    border-radius:10px;
+    background:#38bdf8;
+    color:white;
+    cursor:pointer;
+}
+
+button:hover{
+    background:#0284c7;
+}
+
+.loginInput{
+    width:100%;
+    padding:10px;
+    margin-top:10px;
+    border-radius:10px;
+    border:none;
+}
+
+.boardInput{
+    width:60px;
+    height:60px;
+    text-align:center;
+    font-size:20px;
+    margin:5px;
+}
+
+.row{
+    display:flex;
+    justify-content:center;
+}
+
+.hidden{ display:none; }
+
+.correct{ color:#22c55e; }
+.wrong{ color:#ef4444; }
+
+.ranking-user{
+    background:#334155;
+    padding:10px;
+    margin-top:5px;
+    border-radius:10px;
+}
+
+#rulesBox{
+    background:#334155;
+    padding:10px;
+    margin-top:10px;
+    border-radius:10px;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+<h1>Juego Matemático PRO</h1>
+</header>
+
+<div class="container">
+
+<!-- ACCESO -->
+<div class="card" id="authCard">
+
+<h2>Acceso</h2>
+
+<input id="username" class="loginInput" placeholder="Usuario">
+<input id="password" class="loginInput" type="password" placeholder="Contraseña">
+
+<button onclick="login()">Iniciar sesión</button>
+<button onclick="register()" style="background:#22c55e">Registrarse</button>
+
+</div>
+
+<!-- TEMAS -->
+<div class="card hidden" id="topicsCard">
+
+<h2>Temas</h2>
+
+<button onclick="startGame('magic')">Cuadro mágico</button>
+<button onclick="startGame('sudoku')">Sudoku</button>
+<button onclick="startGame('fracciones')">Fracciones</button>
+<button onclick="startGame('porcentajes')">Porcentajes</button>
+<button onclick="startGame('pitagoras')">Pitágoras</button>
+<button onclick="startGame('enteros')">Enteros</button>
+<button onclick="startGame('conversion')">Conversión</button>
+<button onclick="startGame('estadistica')">Estadística</button>
+
+</div>
+
+<!-- JUEGO -->
+<div class="card hidden" id="gameCard">
+
+<h2 id="gameTitle"></h2>
+<h3>Puntos: <span id="score">0</span></h3>
+
+<button onclick="toggleRules()">Reglas</button>
+
+<div id="rulesBox" class="hidden">
+<p>✔ Resuelve el ejercicio</p>
+<p>✔ Correcto +10</p>
+<p>✔ Incorrecto -5</p>
+</div>
+
+<h2 id="resultText"></h2>
+
+<div id="board"></div>
+
+<button onclick="checkBoard()">Verificar</button>
+
+<p id="message"></p>
+
+</div>
+
+<!-- RANKING -->
+<div class="card">
+<h2>Ranking</h2>
+<div id="rankingList"></div>
+</div>
+
+</div>
+
+<script>
+
+let currentUser = "";
+let score = 0;
+let currentTopic = "";
+let currentSolution = [];
+
+// LOGIN SIMPLE
+function login(){
+
+    let u = document.getElementById("username").value;
+    let p = document.getElementById("password").value;
+
+    let user = JSON.parse(localStorage.getItem("mathUser"));
+
+    if(!user){
+        alert("Regístrate primero");
+        return;
+    }
+
+    if(user.name !== u || user.password !== p){
+        alert("Datos incorrectos");
+        return;
+    }
+
+    currentUser = user.name;
+    score = user.score;
+
+    document.getElementById("authCard").classList.add("hidden");
+    document.getElementById("topicsCard").classList.remove("hidden");
+
+    updateScore();
+    updateRanking();
+}
+
+// REGISTRO
+function register(){
+
+    let u = document.getElementById("username").value;
+    let p = document.getElementById("password").value;
+
+    if(!u || !p){
+        alert("Completa todo");
+        return;
+    }
+
+    let user = {
+        name: u,
+        password: p,
+        score: 0
+    };
+
+    localStorage.setItem("mathUser", JSON.stringify(user));
+
+    alert("Registrado. Ahora inicia sesión");
+}
+
+// INICIO JUEGO
+function startGame(topic){
+
+    currentTopic = topic;
+
+    document.getElementById("gameCard").classList.remove("hidden");
+    document.getElementById("gameTitle").innerText = topic.toUpperCase();
+
+    generateBoard();
+}
+
+// GENERAR EJERCICIOS
+function generateBoard(){
+
+    let board = document.getElementById("board");
+
+    // 🔥 LIMPIEZA TOTAL (ARREGLA BUG)
+    board.innerHTML = "";
+    document.getElementById("message").innerHTML = "";
+
+    currentSolution = [];
+
+    if(currentTopic === "magic"){
+
+        document.getElementById("resultText").innerText = "Suma mágica 15";
+
+        currentSolution = [
+            [8,1,6],
+            [3,5,7],
+            [4,9,2]
+        ];
+
+        createGrid(3,3);
+    }
+
+    else if(currentTopic === "sudoku"){
+
+        document.getElementById("resultText").innerText = "Sin repetir";
+
+        let nums = [1,2,3,4,5,6,7,8,9].sort(()=>Math.random()-0.5);
+
+        currentSolution = [
+            [nums[0],nums[1],nums[2]],
+            [nums[3],nums[4],nums[5]],
+            [nums[6],nums[7],nums[8]]
+        ];
+
+        createGrid(3,3);
+    }
+
+    else{
+
+        let result = 0;
+
+        if(currentTopic === "fracciones"){
+            let a = Math.floor(Math.random()*9)+1;
+            let b = Math.floor(Math.random()*9)+1;
+            result = a+b;
+            document.getElementById("resultText").innerText = `${a}/10 + ${b}/10`;
+        }
+
+        if(currentTopic === "porcentajes"){
+            let n = Math.floor(Math.random()*200)+1;
+            let p = Math.floor(Math.random()*90)+1;
+            result = (n*p)/100;
+            document.getElementById("resultText").innerText = `${p}% de ${n}`;
+        }
+
+        if(currentTopic === "pitagoras"){
+            let a = Math.floor(Math.random()*10)+1;
+            let b = Math.floor(Math.random()*10)+1;
+            result = Math.sqrt(a*a+b*b).toFixed(1);
+            document.getElementById("resultText").innerText = `Catetos ${a} y ${b}`;
+        }
+
+        if(currentTopic === "enteros"){
+            let a = Math.floor(Math.random()*100)-50;
+            let b = Math.floor(Math.random()*100)-50;
+            result = a+b;
+            document.getElementById("resultText").innerText = `${a} + ${b}`;
+        }
+
+        if(currentTopic === "conversion"){
+            let km = Math.floor(Math.random()*20)+1;
+            result = km*1000;
+            document.getElementById("resultText").innerText = `${km} km a metros`;
+        }
+
+        if(currentTopic === "estadistica"){
+            let a = Math.floor(Math.random()*20)+1;
+            let b = Math.floor(Math.random()*20)+1;
+            let c = Math.floor(Math.random()*20)+1;
+            result = ((a+b+c)/3).toFixed(1);
+            document.getElementById("resultText").innerText = `Promedio ${a}, ${b}, ${c}`;
+        }
+
+        currentSolution = [[result]];
+
+        board.innerHTML = `
+        <div class="row">
+        <input id="cell-0-0" class="boardInput">
+        </div>`;
+    }
+}
+
+// GRID
+function createGrid(r,c){
+
+    let board = document.getElementById("board");
+
+    for(let i=0;i<r;i++){
+        let row = document.createElement("div");
+        row.className = "row";
+
+        for(let j=0;j<c;j++){
+            let input = document.createElement("input");
+            input.className = "boardInput";
+            input.id = `cell-${i}-${j}`;
+            row.appendChild(input);
+        }
+
+        board.appendChild(row);
+    }
+}
+
+// CHECK
+function checkBoard(){
+
+    let ok = true;
+
+    for(let i=0;i<currentSolution.length;i++){
+        for(let j=0;j<currentSolution[i].length;j++){
+
+            let val = document.getElementById(`cell-${i}-${j}`).value;
+
+            if(val != currentSolution[i][j]){
+                ok = false;
+            }
+        }
+    }
+
+    let msg = document.getElementById("message");
+
+    if(ok){
+        score += 10;
+        msg.innerHTML = "✔ Correcto";
+        msg.className = "correct";
+    }else{
+        score -= 5;
+        msg.innerHTML = "✖ Incorrecto";
+        msg.className = "wrong";
+    }
+
+    updateScore();
+    saveScore();
+    updateRanking();
+}
+
+// SCORE
+function updateScore(){
+    document.getElementById("score").innerText = score;
+}
+
+// SAVE
+function saveScore(){
+    let user = JSON.parse(localStorage.getItem("mathUser"));
+    if(user){
+        user.score = score;
+        localStorage.setItem("mathUser", JSON.stringify(user));
+    }
+}
+
+// RANKING
+function updateRanking(){
+
+    let user = JSON.parse(localStorage.getItem("mathUser"));
+
+    let box = document.getElementById("rankingList");
+
+    if(!user){
+        box.innerHTML = "Sin jugadores";
+        return;
+    }
+
+    box.innerHTML = `
+        <div class="ranking-user">
+            1. ${user.name} - ${user.score} pts
+        </div>
+    `;
+}
+
+// RULES
+function toggleRules(){
+    document.getElementById("rulesBox").classList.toggle("hidden");
+}
+
+updateRanking();
+
+</script>
+
+</body>
+</html>
